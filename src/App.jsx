@@ -717,7 +717,18 @@ export default function App() {
               {/* Current roster */}
               {rosterStudents.length > 0 && !xlsRaw && (
                 <div className="roster-card">
-                  <h3>현재 등록된 학생 명단</h3>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"4px"}}>
+                    <h3 style={{marginBottom:0}}>현재 등록된 학생 명단</h3>
+                    <button onClick={async () => {
+                      if (!window.confirm("전체 명단을 초기화할까요?\n삭제된 데이터는 복구되지 않습니다.")) return;
+                      await storage.set("clinic_roster", []);
+                      setRosterStudents([]);
+                      setManualSuccess("ok:명단이 초기화되었습니다.");
+                      setTimeout(() => setManualSuccess(""), 3000);
+                    }} style={{background:"#fff0f0",border:"1px solid #ffcccc",color:"#c00",fontSize:"12px",fontWeight:"700",padding:"6px 14px",borderRadius:"8px",cursor:"pointer"}}>
+                      🗑️ 전체 초기화
+                    </button>
+                  </div>
                   <p className="roster-sub">총 {rosterStudents.length}명 · 새 엑셀을 업로드하면 덮어씌워집니다.</p>
                   <div className="preview-table-wrap">
                     <table>
@@ -727,25 +738,14 @@ export default function App() {
                           <tr key={i}>
                             <td>{s.name}</td><td>{s.class||"-"}</td><td>{s.grade||"-"}</td><td>{s.studentId||"-"}</td><td>{s.phone}</td>
                             <td>
-                              <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
-                                <button onClick={async () => {
-                                  if (!window.confirm(`${s.name} 학생의 비밀번호를 초기화할까요?\n기존 신청 내역은 유지됩니다.`)) return;
-                                  const users = await storage.get("clinic_users") || {};
-                                  if (users[s.phone]) {
-                                    delete users[s.phone];
-                                    await storage.set("clinic_users", users);
-                                  }
-                                  setManualSuccess("ok:" + s.name + " 학생 비밀번호가 초기화되었습니다.");
-                                  setTimeout(() => setManualSuccess(""), 3000);
-                                }} style={{background:"#fff8e1",border:"1px solid #ffe082",color:"#b8860b",fontSize:"11px",fontWeight:"700",padding:"4px 8px",borderRadius:"6px",cursor:"pointer",whiteSpace:"nowrap"}}>
-                                  🔑 초기화
-                                </button>
-                                <button onClick={async () => {
+                              <button onClick={async () => {
+                                  if (!window.confirm(`${s.name} 학생을 명단에서 삭제할까요?`)) return;
                                   const updated = rosterStudents.filter((_,idx) => idx !== i);
                                   await storage.set("clinic_roster", updated);
                                   setRosterStudents(updated);
-                                }} style={{background:"none",border:"none",color:"#ccc",fontSize:"16px",cursor:"pointer"}} title="삭제">✕</button>
-                              </div>
+                                }} style={{background:"#fff0f0",border:"1px solid #ffcccc",color:"#c00",fontSize:"11px",fontWeight:"700",padding:"4px 10px",borderRadius:"6px",cursor:"pointer",whiteSpace:"nowrap"}}>
+                                  삭제
+                                </button>
                             </td>
                           </tr>
                         ))}
