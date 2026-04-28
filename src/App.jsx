@@ -309,6 +309,8 @@ export default function App() {
 
   // Session setup
   const [showNewDateForm, setShowNewDateForm] = useState(false);
+  const [editingSlot, setEditingSlot] = useState(null); // { dateId, slotId }
+  const [editSlotForm, setEditSlotForm] = useState({ startTime: "", endTime: "", desc: "", detail: "" });
   const [newDateVal, setNewDateVal] = useState("");
   const [newDateLabel, setNewDateLabel] = useState("");
   const [newDateSlots, setNewDateSlots] = useState([{ time: "", desc: "", detail: "", startTime: "", endTime: "" }]);
@@ -522,6 +524,24 @@ export default function App() {
     const timeStr = form.startTime && form.endTime ? `${formatTime(form.startTime)} ~ ${formatTime(form.endTime)}` : form.startTime ? formatTime(form.startTime) : form.time || "";
     await saveClinicDates(clinicDates.map(d => d.id === dateId ? { ...d, slots: [...d.slots, { id: slotId, time: timeStr, desc: form.desc, detail: form.detail || "" }] } : d));
     setSlotForm(dateId, { time: "", desc: "", detail: "", startTime: "", endTime: "" });
+  };
+  const handleEditSlot = (dateId, slot) => {
+    // Parse time string like "오후 4시 ~ 오후 6시" back to values
+    setEditingSlot({ dateId, slotId: slot.id });
+    setEditSlotForm({ time: slot.time, desc: slot.desc || "", detail: slot.detail || "", startTime: "", endTime: "" });
+  };
+  const handleSaveEditSlot = async (dateId, slotId) => {
+    const newTime = editSlotForm.startTime && editSlotForm.endTime
+      ? `${formatTime(editSlotForm.startTime)} ~ ${formatTime(editSlotForm.endTime)}`
+      : editSlotForm.time;
+    const newDates = clinicDates.map(d =>
+      d.id === dateId ? {
+        ...d,
+        slots: d.slots.map(s => s.id === slotId ? { ...s, time: newTime, desc: editSlotForm.desc, detail: editSlotForm.detail } : s)
+      } : d
+    );
+    await saveClinicDates(newDates);
+    setEditingSlot(null);
   };
   const handleDeleteSlot = async (dateId, slotId) =>
     await saveClinicDates(clinicDates.map(d => d.id === dateId ? { ...d, slots: d.slots.filter(s => s.id !== slotId) } : d));
@@ -831,16 +851,70 @@ export default function App() {
                   </div>
                   {d.slots.map(s => {
                     const count = countForSlot(d.id, s.id);
+                    const isEditing = editingSlot?.dateId === d.id && editingSlot?.slotId === s.id;
                     return (
-                      <div key={s.id} className="slot-row">
-                        <div className="slot-row-info">
-                          <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px"}}>
-                            <div className="slot-row-time">⏰ {s.time}</div>
-                            <span style={{background:count>0?"#0f3460":"#e8edf2",color:count>0?"white":"#aaa",fontSize:"11px",fontWeight:"700",padding:"2px 8px",borderRadius:"20px"}}>{count}명 신청</span>
+                      <div key={s.id} className="slot-row" style={{flexDirection:"column",alignItems:"stretch"}}>
+                        {!isEditing ? (
+                          <div style={{display:"flex",alignItems:"flex-start",gap:"12px"}}>
+                            <div className="slot-row-info">
+                              <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px"}}>
+                                <div className="slot-row-time">⏰ {s.time}</div>
+                                <span style={{background:count>0?"#0f3460":"#e8edf2",color:count>0?"white":"#aaa",fontSize:"11px",fontWeight:"700",padding:"2px 8px",borderRadius:"20px"}}>{count}명 신청</span>
+                              </div>
+                              <div className="slot-row-desc">{s.desc}</div>
+                              {s.detail && <div style={{fontSize:"12px",color:"#999",marginTop:"2px"}}>{s.detail}</div>}
+                            </div>
+                            <div style={{display:"flex",gap:"6px",flexShrink:0}}>
+                              <button onClick={() => handleEditSlot(d.id, s)} style={{background:"#f0f4ff",border:"1px solid #b0c4f0",color:"#0f3460",fontSize:"11px",fontWeight:"700",padding:"4px 8px",borderRadius:"6px",cursor:"pointer"}}>✏️ 수정</button>
+                              <button className="btn-delete" onClick={() => handleDeleteSlot(d.id, s.id)}>✕</button>
+                            </div>
                           </div>
-                          <div className="slot-row-desc">{s.desc}</div>
-                        </div>
-                        <button className="btn-delete" onClick={() => handleDeleteSlot(d.id, s.id)}>✕</button>
+                        ) : (
+                          <div>
+                            <div style={{fontSize:"12px",fontWeight:"700",color:"#0f3460",marginBottom:"10px"}}>✏️ 수업 수정</div>
+                            <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"10px"}}>
+                              <div style={{flex:1}}>
+                                <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>시작 시간</div>
+                                <select value={editSlotForm.startTime} onChange={e => setEditSlotForm(p=>({...p,startTime:e.target.value}))}
+                                  style={{width:"100%",padding:"8px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",background:"white"}}>
+                                  <option value="">-- 선택 --</option>
+                                  { [].concat(...[...Array(14)].map((_,h) => [0,10,20,30,40,50].map(m => {
+                                      const hour=h+9; const displayHour=hour>12?hour-12:hour; const ampm=hour<12?'오전':'오후';
+                                      const val=`${hour}:${String(m).padStart(2,'0')}`;
+                                      return <option key={val} value={val}>{ampm} {displayHour}시{m>0?' '+String(m).padStart(2,'0')+'분':''}</option>;
+                                    }))) }
+                                </select>
+                              </div>
+                              <div style={{color:"#aaa",fontSize:"16px",paddingTop:"18px"}}>~</div>
+                              <div style={{flex:1}}>
+                                <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>종료 시간</div>
+                                <select value={editSlotForm.endTime} onChange={e => setEditSlotForm(p=>({...p,endTime:e.target.value}))}
+                                  style={{width:"100%",padding:"8px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",background:"white"}}>
+                                  <option value="">-- 선택 --</option>
+                                  { [].concat(...[...Array(14)].map((_,h) => [0,10,20,30,40,50].map(m => {
+                                      const hour=h+9; const displayHour=hour>12?hour-12:hour; const ampm=hour<12?'오전':'오후';
+                                      const val=`${hour}:${String(m).padStart(2,'0')}`;
+                                      return <option key={val} value={val}>{ampm} {displayHour}시{m>0?' '+String(m).padStart(2,'0')+'분':''}</option>;
+                                    }))) }
+                                </select>
+                              </div>
+                            </div>
+                            <div style={{marginBottom:"8px"}}>
+                              <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>수업 내용</div>
+                              <input type="text" value={editSlotForm.desc} onChange={e => setEditSlotForm(p=>({...p,desc:e.target.value}))}
+                                style={{width:"100%",padding:"8px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none"}} />
+                            </div>
+                            <div style={{marginBottom:"12px"}}>
+                              <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>세부 내용 (선택)</div>
+                              <textarea value={editSlotForm.detail} onChange={e => setEditSlotForm(p=>({...p,detail:e.target.value}))}
+                                style={{width:"100%",padding:"8px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",resize:"vertical",minHeight:"60px"}} />
+                            </div>
+                            <div style={{display:"flex",gap:"8px"}}>
+                              <button onClick={() => handleSaveEditSlot(d.id, s.id)} style={{padding:"9px 20px",background:"linear-gradient(135deg,#1a7a3f,#2ecc71)",color:"white",border:"none",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",fontWeight:"700",cursor:"pointer"}}>💾 저장</button>
+                              <button onClick={() => setEditingSlot(null)} style={{padding:"9px 16px",background:"white",color:"#888",border:"1px solid #ddd",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",cursor:"pointer"}}>취소</button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
