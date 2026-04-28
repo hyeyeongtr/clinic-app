@@ -232,6 +232,18 @@ const STYLE = `
 `;
 
 const ADMIN_PHONE = "ella";
+
+const formatTime = (val) => {
+  if (!val) return "";
+  // val is like "16:00" or old format like "16시"
+  const match = val.match(/^(\d+):(\d+)$/);
+  if (!match) return val;
+  const hour = parseInt(match[1]);
+  const min = parseInt(match[2]);
+  const ampm = hour < 12 ? "오전" : "오후";
+  const h = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+  return min > 0 ? `${ampm} ${h}시 ${String(min).padStart(2,'0')}분` : `${ampm} ${h}시`;
+};
 const ADMIN_PW = "1234";
 
 const storage = {
@@ -359,7 +371,7 @@ export default function App() {
 
   const handleLogin = async () => {
     setError(""); setSuccessMsg("");
-    if (!loginPhone || !loginPw) { setError("학부모 번호와 비밀번호를 입력해주세요."); return; }
+    if (!loginPhone || !loginPw) { setError("학부모 전화번호를 입력해주세요."); return; }
     if (loginPhone === ADMIN_PHONE && loginPw === ADMIN_PW) {
       const [regs, dates, roster] = await Promise.all([
         storage.get("clinic_regs"), storage.get("clinic_dates"), storage.get("clinic_roster")
@@ -453,7 +465,7 @@ export default function App() {
       .filter(s => (s.startTime || s.time) && s.desc.trim())
       .map(s => ({
         id: "s_" + Date.now() + Math.random(),
-        time: s.startTime && s.endTime ? `${s.startTime} ~ ${s.endTime}` : s.startTime || s.time || "",
+        time: s.startTime && s.endTime ? `${formatTime(s.startTime)} ~ ${formatTime(s.endTime)}` : s.startTime ? formatTime(s.startTime) : s.time || "",
         desc: s.desc,
         detail: s.detail || "",
       }));
@@ -467,7 +479,7 @@ export default function App() {
     const form = getSlotForm(dateId);
     if ((!form.startTime && !form.time) || !form.desc) return;
     const slotId = "s_" + Date.now();
-    const timeStr = form.startTime && form.endTime ? `${form.startTime} ~ ${form.endTime}` : form.startTime || form.time || "";
+    const timeStr = form.startTime && form.endTime ? `${formatTime(form.startTime)} ~ ${formatTime(form.endTime)}` : form.startTime ? formatTime(form.startTime) : form.time || "";
     await saveClinicDates(clinicDates.map(d => d.id === dateId ? { ...d, slots: [...d.slots, { id: slotId, time: timeStr, desc: form.desc, detail: form.detail || "" }] } : d));
     setSlotForm(dateId, { time: "", desc: "", detail: "", startTime: "", endTime: "" });
   };
