@@ -250,13 +250,18 @@ const storage = {
   get: async (k) => {
     try {
       const snap = await getDoc(doc(db, "appdata", k));
-      return snap.exists() ? snap.data().value : null;
-    } catch(e) { console.error("Firebase get error:", e); return null; }
+      if (!snap.exists()) return null;
+      const val = snap.data().value;
+      if (typeof val === 'string') {
+        try { return JSON.parse(val); } catch { return val; }
+      }
+      return val;
+    } catch(e) { console.error("Firebase get error:", k, e); return null; }
   },
   set: async (k, v) => {
     try {
-      await setDoc(doc(db, "appdata", k), { value: v });
-    } catch(e) { console.error("Firebase set error:", e); }
+      await setDoc(doc(db, "appdata", k), { value: JSON.stringify(v) });
+    } catch(e) { console.error("Firebase set error:", k, e); }
   },
 };
 
@@ -1174,7 +1179,7 @@ export default function App() {
           <div className="field">
             <label>학부모 전화번호</label>
             <input type="tel" placeholder="01012345678" value={loginPhone}
-              onChange={e => { setLoginPhone(e.target.value.replace(/[^0-9a-zA-Z]/g,"")); }}
+              onChange={e => { setLoginPhone(e.target.value.replace(/[^0-9a-zA-Z]/g,"")); setError(""); }}
               onKeyDown={e => e.key==="Enter" && handleLogin()} />
           </div>
           {loginPhone.trim() === "ella" && (
