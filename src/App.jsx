@@ -554,6 +554,19 @@ export default function App() {
   const isSelected = (dateId, slotId) => selectedSlots.some(s => s.dateId === dateId && s.slotId === slotId);
   const isConfirmed = (dateId, slotId) => confirmedSlots.some(s => s.dateId === dateId && s.slotId === slotId);
   const toggleSlot = (dateId, slotId) => {
+    // 신청 완료 상태면 자동으로 변경 모드 진입
+    if (confirmedSlots.length > 0 && !isChanging) {
+      setSelectedSlots([...confirmedSlots]);
+      setIsChanging(true);
+      // 클릭한 슬롯 토글
+      setTimeout(() => {
+        setSelectedSlots(prev => {
+          const already = prev.some(s => s.dateId === dateId && s.slotId === slotId);
+          return already ? prev.filter(s => !(s.dateId === dateId && s.slotId === slotId)) : [...prev, { dateId, slotId }];
+        });
+      }, 0);
+      return;
+    }
     if (isSelected(dateId, slotId)) setSelectedSlots(prev => prev.filter(s => !(s.dateId === dateId && s.slotId === slotId)));
     else setSelectedSlots(prev => [...prev, { dateId, slotId }]);
   };
@@ -1324,7 +1337,7 @@ export default function App() {
                 {d.slots.map(s => {
                   const confirmed = isConfirmed(d.id, s.id);
                   const selected = isSelected(d.id, s.id);
-                  const clickable = isChanging || confirmedSlots.length === 0;
+                  const clickable = true; // always clickable - auto enters change mode
                   return (
                     <div key={s.id} className={`clinic-slot ${selected?"selected":""} ${confirmed&&!isChanging?"confirmed":""}`}
                       onClick={() => clickable && toggleSlot(d.id, s.id)}>
