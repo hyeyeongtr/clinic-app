@@ -316,6 +316,9 @@ export default function App() {
   // Twin selection
   const [twinCandidates, setTwinCandidates] = useState([]); // [{name, class, grade, studentId, phone}]
 
+  // Log
+  const [clinicLog, setClinicLog] = useState([]);
+
   // Results
   const [slotResults, setSlotResults] = useState({}); // { "dateId_slotId": { type:"score"|"grade"|"note", students:{ phone:{score,total,grade,note} } } }
   const [expandedResult, setExpandedResult] = useState(null); // "dateId_slotId"
@@ -540,6 +543,19 @@ export default function App() {
     const regs = await storage.get("clinic_regs") || [];
     const filtered = regs.filter(r => (r.regKey || r.phone) !== regKey);
     await storage.set("clinic_regs", [...filtered, { name: currentUser.name, phone: currentUser.phone, regKey, class: currentUser.class, grade: currentUser.grade, studentId: currentUser.studentId, slots: selectedSlots, date: new Date().toLocaleDateString("ko-KR"), changed: isChanging }]);
+    // 로그 기록
+    const logEntry = {
+      id: Date.now(),
+      name: currentUser.name,
+      class: currentUser.class || "",
+      grade: currentUser.grade || "",
+      phone: currentUser.phone,
+      action: isChanging ? "변경" : "신청",
+      slots: selectedSlots.map(s => getSlotLabel(s.dateId, s.slotId)),
+      datetime: new Date().toLocaleString("ko-KR"),
+    };
+    const logs = await storage.get("clinic_log") || [];
+    await storage.set("clinic_log", [...logs, logEntry]);
     setConfirmedSlots(selectedSlots); setSelectedSlots([]); setIsChanging(false);
   };
 
@@ -552,8 +568,13 @@ export default function App() {
     allRegistrations.filter(r => r.slots.some(s => s.dateId === dateId && s.slotId === slotId)).length;
 
   const refreshAdminData = async () => {
-    const [regs, dates, roster, results] = await Promise.all([storage.get("clinic_regs"), storage.get("clinic_dates"), storage.get("clinic_roster"), storage.get("clinic_results")]);
-    setAllRegistrations(regs || []); setClinicDates(dates || []); setRosterStudents(roster || []); setSlotResults(results || {});
+    const [regs, dates, roster, results, logs] = await Promise.all([
+      storage.get("clinic_regs"), storage.get("clinic_dates"),
+      storage.get("clinic_roster"), storage.get("clinic_results"), storage.get("clinic_log")
+    ]);
+    setAllRegistrations(regs || []); setClinicDates(dates || []);
+    setRosterStudents(roster || []); setSlotResults(results || {});
+    setClinicLog(logs || []);
   };
 
   const saveResults = async (updated) => {
@@ -606,7 +627,7 @@ export default function App() {
         <div className="body">
           {successMsg && <div className="success" style={{marginBottom:"16px"}}>{successMsg}</div>}
           <div className="admin-tabs">
-            {[["roster","👥 학생 명단"],["sessions","📅 수업 설정"],["registrations","📋 신청 현황"]].map(([key,label]) => (
+            {[["roster","👥 학생 명단"],["sessions","📅 수업 설정"],["registrations","📋 신청 현황"],["log","📜 신청 로그"]].map(([key,label]) => (
               <button key={key} className={`admin-tab ${adminTab===key?"active":""}`}
                 onClick={async () => { await refreshAdminData(); setAdminTab(key); }}>{label}</button>
             ))}
@@ -970,6 +991,7 @@ export default function App() {
                           <tr key={i}>
                             <td>{r.name}</td>
                             <td>{r.class||"-"}</td>
+                            <td>{r.grade||"-"}</td>
                             <td>{r.studentId||"-"}</td>
                             <td>{r.phone}</td>
                             <td>{r.date}</td>
@@ -1121,6 +1143,59 @@ export default function App() {
               ))}
               {clinicDates.length === 0 && <div className="empty-notice">설정된 수업 일정이 없습니다.</div>}
             </>
+          )}
+
+          {/* ── 신청 로그 탭 ── */}
+          {adminTab === "log" && (
+            <div className="reg-card">
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"16px"}}>
+                <h3 style={{marginBottom:0}}>📜 신청 로그 (누적 {clinicLog.length}건)</h3>
+                <button onClick={async () => {
+                  if (!window.confirm("로그를 전체 삭제할까요?")) return;
+                  await storage.set("clinic_log", []);
+                  setClinicLog([]);
+                }} style={{background:"#fff0f0",border:"1px solid #ffcccc",color:"#c00",fontSize:"12px",fontWeight:"700",padding:"6px 14px",borderRadius:"8px",cursor:"pointer"}}>
+                  🗑️ 로그 초기화
+                </button>
+              </div>
+              {clinicLog.length === 0 ? (
+                <div className="empty-notice">아직 신청 로그가 없습니다.</div>
+              ) : (
+                <div style={{overflowX:"auto"}}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>시각</th>
+                        <th>이름</th>
+                        <th>반명</th>
+                        <th>학년</th>
+                        <th>구분</th>
+                        <th>신청 수업</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...clinicLog].reverse().map((log, i) => (
+                        <tr key={i}>
+                          <td style={{fontSize:"12px",whiteSpace:"nowrap"}}>{log.datetime}</td>
+                          <td>{log.name}</td>
+                          <td>{log.class||"-"}</td>
+                          <td>{log.grade||"-"}</td>
+                          <td>
+                            <span style={{
+                              background: log.action==="변경" ? "#fff8e1" : "#f0fff4",
+                              color: log.action==="변경" ? "#b8860b" : "#1a7a3f",
+                              fontSize:"11px", fontWeight:"700",
+                              padding:"2px 8px", borderRadius:"20px"
+                            }}>{log.action==="변경" ? "✏️ 변경" : "✅ 신청"}</span>
+                          </td>
+                          <td style={{fontSize:"12px"}}>{log.slots?.join(", ")||"-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
