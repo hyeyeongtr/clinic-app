@@ -280,7 +280,7 @@ export default function App() {
   const [showNewDateForm, setShowNewDateForm] = useState(false);
   const [newDateVal, setNewDateVal] = useState("");
   const [newDateLabel, setNewDateLabel] = useState("");
-  const [newDateSlots, setNewDateSlots] = useState([{ time: "", desc: "" }]);
+  const [newDateSlots, setNewDateSlots] = useState([{ time: "", desc: "", detail: "", startTime: "", endTime: "" }]);
   const [addSlotForms, setAddSlotForms] = useState({});
 
   // Twin selection
@@ -439,26 +439,32 @@ export default function App() {
     if (!newDateLabel.trim()) return;
     const id = "d_" + Date.now();
     const filledSlots = newDateSlots
-      .filter(s => s.time.trim() && s.desc.trim())
-      .map(s => ({ id: "s_" + Date.now() + Math.random(), time: s.time, desc: s.desc }));
+      .filter(s => (s.startTime || s.time) && s.desc.trim())
+      .map(s => ({
+        id: "s_" + Date.now() + Math.random(),
+        time: s.startTime && s.endTime ? `${s.startTime} ~ ${s.endTime}` : s.startTime || s.time || "",
+        desc: s.desc,
+        detail: s.detail || "",
+      }));
     await saveClinicDates([...clinicDates, { id, date: newDateVal, label: newDateLabel, slots: filledSlots }]);
-    setNewDateVal(""); setNewDateLabel(""); setNewDateSlots([{ time: "", desc: "" }]); setShowNewDateForm(false);
+    setNewDateVal(""); setNewDateLabel(""); setNewDateSlots([{ time: "", desc: "", detail: "", startTime: "", endTime: "" }]); setShowNewDateForm(false);
   };
   const handleDeleteDate = async (dateId) => await saveClinicDates(clinicDates.filter(d => d.id !== dateId));
   const getSlotForm = (dateId) => addSlotForms[dateId] || { time: "", desc: "" };
   const setSlotForm = (dateId, val) => setAddSlotForms(prev => ({ ...prev, [dateId]: val }));
   const handleAddSlot = async (dateId) => {
     const form = getSlotForm(dateId);
-    if (!form.time || !form.desc) return;
+    if ((!form.startTime && !form.time) || !form.desc) return;
     const slotId = "s_" + Date.now();
-    await saveClinicDates(clinicDates.map(d => d.id === dateId ? { ...d, slots: [...d.slots, { id: slotId, time: form.time, desc: form.desc }] } : d));
-    setSlotForm(dateId, { time: "", desc: "" });
+    const timeStr = form.startTime && form.endTime ? `${form.startTime} ~ ${form.endTime}` : form.startTime || form.time || "";
+    await saveClinicDates(clinicDates.map(d => d.id === dateId ? { ...d, slots: [...d.slots, { id: slotId, time: timeStr, desc: form.desc, detail: form.detail || "" }] } : d));
+    setSlotForm(dateId, { time: "", desc: "", detail: "", startTime: "", endTime: "" });
   };
   const handleDeleteSlot = async (dateId, slotId) =>
     await saveClinicDates(clinicDates.map(d => d.id === dateId ? { ...d, slots: d.slots.filter(s => s.id !== slotId) } : d));
 
   const updateNewDateSlot = (i, field, val) => setNewDateSlots(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: val } : s));
-  const addNewDateSlotRow = () => setNewDateSlots(prev => [...prev, { time: "", desc: "" }]);
+  const addNewDateSlotRow = () => setNewDateSlots(prev => [...prev, { time: "", desc: "", detail: "", startTime: "", endTime: "" }]);
   const removeNewDateSlotRow = (i) => setNewDateSlots(prev => prev.filter((_, idx) => idx !== i));
 
   // ── STUDENT ──
@@ -759,17 +765,36 @@ export default function App() {
                   })}
                   <div className="add-slot-form">
                     <h5>+ 시간대 추가</h5>
+                    <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"10px"}}>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>시작 시간</div>
+                        <select value={getSlotForm(d.id).startTime||""} onChange={e => setSlotForm(d.id, { ...getSlotForm(d.id), startTime: e.target.value })}
+                          style={{width:"100%",padding:"9px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",background:"white"}}>
+                          <option value="">-- 선택 --</option>
+                          {[...Array(14)].map((_,h) => { const hour=h+9; return <option key={hour} value={`${hour}시`}>{hour}시</option>; })}
+                        </select>
+                      </div>
+                      <div style={{color:"#aaa",fontSize:"16px",paddingTop:"18px"}}>~</div>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>종료 시간</div>
+                        <select value={getSlotForm(d.id).endTime||""} onChange={e => setSlotForm(d.id, { ...getSlotForm(d.id), endTime: e.target.value })}
+                          style={{width:"100%",padding:"9px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",background:"white"}}>
+                          <option value="">-- 선택 --</option>
+                          {[...Array(14)].map((_,h) => { const hour=h+9; return <option key={hour} value={`${hour}시`}>{hour}시</option>; })}
+                        </select>
+                      </div>
+                    </div>
                     <div style={{marginBottom:"10px"}}>
-                      <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>시간</div>
-                      <input type="text" placeholder="예: 4-6시" value={getSlotForm(d.id).time}
-                        style={{width:"100%",padding:"10px 12px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none"}}
-                        onChange={e => setSlotForm(d.id, { ...getSlotForm(d.id), time: e.target.value })} />
+                      <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>수업 내용</div>
+                      <input type="text" placeholder="예: 2026 3월 고1 모의고사 실전연습 및 풀이" value={getSlotForm(d.id).desc||""}
+                        style={{width:"100%",padding:"9px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none"}}
+                        onChange={e => setSlotForm(d.id, { ...getSlotForm(d.id), desc: e.target.value })} />
                     </div>
                     <div>
-                      <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>수업 내용</div>
-                      <textarea placeholder="예: 2026 3월 고1 모의고사 실전연습 및 풀이" value={getSlotForm(d.id).desc}
-                        style={{width:"100%",padding:"10px 12px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",resize:"vertical",minHeight:"70px"}}
-                        onChange={e => setSlotForm(d.id, { ...getSlotForm(d.id), desc: e.target.value })} />
+                      <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>세부 내용 (선택)</div>
+                      <textarea placeholder="예: 듣기 포함 / 오답 해설 집중" value={getSlotForm(d.id).detail||""}
+                        style={{width:"100%",padding:"9px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",resize:"vertical",minHeight:"60px"}}
+                        onChange={e => setSlotForm(d.id, { ...getSlotForm(d.id), detail: e.target.value })} />
                     </div>
                     <button className="btn-add-slot" onClick={() => handleAddSlot(d.id)}>추가하기</button>
                   </div>
@@ -781,35 +806,55 @@ export default function App() {
                   <div className="field"><label>날짜 표기 (예: 5/6 수요일)</label>
                     <input type="text" placeholder="5/6 수요일" value={newDateLabel} onChange={e => setNewDateLabel(e.target.value)} />
                   </div>
-                  <div className="field"><label>날짜 (정렬용)</label>
-                    <input type="date" value={newDateVal} onChange={e => setNewDateVal(e.target.value)} />
-                  </div>
                   <div style={{marginTop:"14px",marginBottom:"6px",fontSize:"12px",fontWeight:"700",color:"#0f3460"}}>⏰ 시간대 및 수업 내용</div>
                   {newDateSlots.map((s, i) => (
-                    <div key={i} style={{background:"#f8fafc",border:"1px solid #e0e8f0",borderRadius:"10px",padding:"12px",marginBottom:"8px"}}>
-                      <div style={{display:"flex",alignItems:"flex-start",gap:"8px"}}>
-                        <div style={{flex:"0 0 90px"}}>
-                          <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>시간</div>
-                          <input type="text" placeholder="4-6시"
-                            style={{width:"100%",padding:"8px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none"}}
-                            value={s.time} onChange={e => updateNewDateSlot(i, "time", e.target.value)} />
-                        </div>
+                    <div key={i} style={{background:"#f8fafc",border:"1px solid #e0e8f0",borderRadius:"10px",padding:"14px",marginBottom:"10px"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"10px"}}>
                         <div style={{flex:1}}>
-                          <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>수업 내용</div>
-                          <input type="text" placeholder="예: 3월 고1 모의고사 풀이"
-                            style={{width:"100%",padding:"8px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none"}}
-                            value={s.desc} onChange={e => updateNewDateSlot(i, "desc", e.target.value)} />
+                          <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>시작 시간</div>
+                          <select value={s.startTime||""} onChange={e => updateNewDateSlot(i, "startTime", e.target.value)}
+                            style={{width:"100%",padding:"8px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",background:"white"}}>
+                            <option value="">-- 선택 --</option>
+                            {[...Array(14)].map((_,h) => {
+                              const hour = h + 9;
+                              return <option key={hour} value={`${hour}시`}>{hour}시</option>;
+                            })}
+                          </select>
+                        </div>
+                        <div style={{paddingTop:"18px",color:"#aaa",fontSize:"16px"}}>~</div>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>종료 시간</div>
+                          <select value={s.endTime||""} onChange={e => updateNewDateSlot(i, "endTime", e.target.value)}
+                            style={{width:"100%",padding:"8px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",background:"white"}}>
+                            <option value="">-- 선택 --</option>
+                            {[...Array(14)].map((_,h) => {
+                              const hour = h + 9;
+                              return <option key={hour} value={`${hour}시`}>{hour}시</option>;
+                            })}
+                          </select>
                         </div>
                         {newDateSlots.length > 1 && (
-                          <button onClick={() => removeNewDateSlotRow(i)} style={{background:"none",border:"none",color:"#ccc",fontSize:"18px",cursor:"pointer",paddingTop:"20px"}}>✕</button>
+                          <button onClick={() => removeNewDateSlotRow(i)} style={{background:"none",border:"none",color:"#ccc",fontSize:"18px",cursor:"pointer",paddingTop:"18px"}}>✕</button>
                         )}
+                      </div>
+                      <div style={{marginBottom:"8px"}}>
+                        <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>수업 내용</div>
+                        <input type="text" placeholder="예: 2026 3월 고2 모의고사 실전연습 및 해설"
+                          style={{width:"100%",padding:"8px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none"}}
+                          value={s.desc||""} onChange={e => updateNewDateSlot(i, "desc", e.target.value)} />
+                      </div>
+                      <div>
+                        <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>세부 내용 (선택)</div>
+                        <textarea placeholder="예: 듣기 포함 / 1~45번 전 문항 풀이 / 오답 해설 집중"
+                          style={{width:"100%",padding:"8px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",resize:"vertical",minHeight:"60px"}}
+                          value={s.detail||""} onChange={e => updateNewDateSlot(i, "detail", e.target.value)} />
                       </div>
                     </div>
                   ))}
                   <button onClick={addNewDateSlotRow} style={{width:"100%",padding:"9px",background:"white",border:"2px dashed #b0c0e8",borderRadius:"8px",color:"#0f3460",fontFamily:"inherit",fontSize:"13px",fontWeight:"700",cursor:"pointer",marginBottom:"12px"}}>+ 시간대 추가</button>
                   <div style={{display:"flex",gap:"8px"}}>
                     <button className="btn-add-slot" onClick={handleAddDate}>저장</button>
-                    <button className="btn-secondary-sm" onClick={() => { setShowNewDateForm(false); setNewDateSlots([{time:"",desc:""}]); }}>취소</button>
+                    <button className="btn-secondary-sm" onClick={() => { setShowNewDateForm(false); setNewDateSlots([{time:"",desc:"",detail:"",startTime:"",endTime:""}]); }}>취소</button>
                   </div>
                 </div>
               ) : (
@@ -1030,6 +1075,7 @@ export default function App() {
                           )}
                         </div>
                         <div className="slot-desc">{s.desc}</div>
+                        {s.detail && <div style={{fontSize:"12px",color:"#888",marginTop:"3px",lineHeight:"1.5"}}>{s.detail}</div>}
                       </div>
                     </div>
                   );
