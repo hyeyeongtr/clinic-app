@@ -326,6 +326,7 @@ export default function App() {
   const [isChanging, setIsChanging] = useState(false);
 
   useEffect(() => {
+    setLoading(false);
     storage.get("clinic_dates").then(d => { if (d) setClinicDates(d); });
     storage.get("clinic_roster").then(r => { if (r) setRosterStudents(r); });
     storage.get("clinic_results").then(r => { if (r) setSlotResults(r); });
@@ -378,22 +379,50 @@ export default function App() {
 
   const handleLogin = async () => {
     setError(""); setSuccessMsg("");
-    if (!loginPhone || !loginPw) { setError("학부모 전화번호를 입력해주세요."); return; }
-    if (loginPhone === ADMIN_PHONE && loginPw === ADMIN_PW) {
-      const [regs, dates, roster] = await Promise.all([
-        storage.get("clinic_regs"), storage.get("clinic_dates"), storage.get("clinic_roster")
-      ]);
-      setAllRegistrations(regs || []); setClinicDates(dates || []); setRosterStudents(roster || []);
-      setCurrentUser({ name: "관리자", isAdmin: true });
-      setScreen("admin"); return;
+    const rawPhone = (loginPhoneRef.current?.value || "").trim();
+    const phone = rawPhone.replace(/\D/g, "");
+    if (!rawPhone) { setError("학부모 전화번호를 입력해주세요."); return; }
+    // 관리자 로그인
+    if (rawPhone === ADMIN_PHONE) {
+      const pwVal = (loginPwRef.current?.value || "").trim();
+      if (pwVal !== ADMIN_PW) { setError("관리자 비밀번호가 올바르지 않습니다."); return; }
+      try {
+        const [regs, dates, roster, results] = await Promise.all([
+          storage.get("clinic_regs"), storage.get("clinic_dates"),
+          storage.get("clinic_roster"), storage.get("clinic_results")
+        ]);
+        setAllRegistrations(regs || []); setClinicDates(dates || []);
+        setRosterStudents(roster || []); setSlotResults(results || {});
+        setCurrentUser({ name: "관리자", isAdmin: true });
+        setScreen("admin");
+      } catch(e) { setError("오류가 발생했습니다. 다시 시도해주세요."); console.error(e); }
+      return;
     }
+    // 학생 로그인
     setLoading(true);
-    const users = await storage.get("clinic_users") || {};
-    const user = users[loginPhone];
-    if (!user || user.pw !== loginPw) { setError("학부모 번호 또는 비밀번호가 올바르지 않습니다."); setLoading(false); return; }
-    const [saved, dates] = await Promise.all([storage.get(`clinic_reg_${loginPhone}`), storage.get("clinic_dates")]);
-    setConfirmedSlots(saved || []); setClinicDates(dates || []);
-    setCurrentUser(user); setScreen("student"); setLoading(false);
+    try {
+      const roster = await storage.get("clinic_roster") || [];
+      console.log("roster:", roster.length, "phone:", phone);
+      const matches = roster.filter(s => s.phone && s.phone.replace(/\D/g,"") === phone);
+      if (matches.length === 0) { setError("등록된 학부모 번호가 아닙니다. 선생님께 문의해주세요."); return; }
+      const dates = await storage.get("clinic_dates");
+      setClinicDates(dates || []);
+      if (matches.length === 1) {
+        const found = matches[0];
+        const saved = await storage.get(`clinic_reg_${phone}`);
+        setConfirmedSlots(saved || []);
+        setCurrentUser({ name: found.name, phone, class: found.class, grade: found.grade, studentId: found.studentId });
+        setScreen("student");
+      } else {
+        setTwinCandidates(matches);
+        setScreen("twin_select");
+      }
+    } catch(e) {
+      setError("오류가 발생했습니다. 다시 시도해주세요.");
+      console.error("로그인 오류:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLogout = () => {
@@ -1192,7 +1221,7 @@ export default function App() {
                 onKeyDown={e => e.key==="Enter" && handleLogin()} />
             </div>
           )}
-          <button className="btn-primary" onClick={handleLogin} disabled={loading}>
+          <button className="btn-primary" onClick={handleLogin}>
             {loading ? "확인 중..." : "입장하기"}
           </button>
           <p style={{fontSize:"12px",color:"#aaa",textAlign:"center",marginTop:"14px",lineHeight:"1.6"}}>
