@@ -276,6 +276,8 @@ export default function App() {
   // Auth
   const [loginPhone, setLoginPhone] = useState("");
   const [loginPw, setLoginPw] = useState("");
+  const loginPhoneRef = useRef(null);
+  const loginPwRef = useRef(null);
 
   // Register - step 1: enter phone, step 2: set password
   const [regStep, setRegStep] = useState(1);
