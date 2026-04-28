@@ -91,7 +91,7 @@ const STYLE = `
     font-family: 'Noto Sans KR', sans-serif; font-size: 13px; cursor: pointer;
   }
   .btn-logout:hover { background: rgba(255,255,255,0.25); }
-  .body { padding: 24px; max-width: 640px; margin: 0 auto; }
+  .body { padding: 16px; max-width: 640px; margin: 0 auto; }
 
   .welcome-card {
     background: white; border-radius: 16px; padding: 20px 24px;
@@ -139,9 +139,10 @@ const STYLE = `
   .col-map-item select:focus { border-color: #0f3460; }
 
   .preview-table-wrap { overflow-x: auto; margin-bottom: 16px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { background: #f0f4f8; padding: 8px 12px; text-align: left; font-weight: 700; color: #555; white-space: nowrap; }
-  td { padding: 8px 12px; border-bottom: 1px solid #f0f4f8; color: #333; white-space: nowrap; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 500px; }
+  th { background: #f0f4f8; padding: 8px 10px; text-align: left; font-weight: 700; color: #555; white-space: nowrap; font-size: 12px; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f0f4f8; color: #333; white-space: nowrap; font-size: 12px; }
 
   .btn-save-roster {
     width: 100%; padding: 13px; background: linear-gradient(135deg, #1a7a3f, #2ecc71);
@@ -787,7 +788,7 @@ export default function App() {
                     </button>
                   </div>
                   <p className="roster-sub">총 {rosterStudents.length}명 · 새 엑셀을 업로드하면 덮어씌워집니다.</p>
-                  <div className="preview-table-wrap">
+                  <div className="table-wrap">
                     <table>
                       <thead><tr><th>이름</th><th>반명</th><th>학년</th><th>학생번호</th><th>학부모 번호</th><th></th></tr></thead>
                       <tbody>
@@ -983,7 +984,7 @@ export default function App() {
               <div className="reg-card" style={{marginBottom:"16px"}}>
                 <h3>📋 전체 신청 현황 ({allRegistrations.length}명)</h3>
                 {allRegistrations.length === 0 ? <div className="empty-notice">아직 신청한 학생이 없습니다.</div> : (
-                  <div style={{overflowX:"auto"}}>
+                  <div className="table-wrap">
                     <table>
                       <thead><tr><th>이름</th><th>반명</th><th>학년</th><th>학생번호</th><th>학부모 번호</th><th>신청일</th><th>비고</th></tr></thead>
                       <tbody>
@@ -1031,7 +1032,8 @@ export default function App() {
                           return (
                             <div style={{padding:"0 20px 16px"}}>
                               {/* Student list */}
-                              <table style={{marginTop:"10px", marginBottom:"12px"}}>
+                              <div className="table-wrap" style={{marginTop:"10px", marginBottom:"12px"}}>
+                              <table>
                                 <thead>
                                   <tr>
                                     <th style={{fontSize:"11px"}}>이름</th>
@@ -1065,6 +1067,7 @@ export default function App() {
                                   })}
                                 </tbody>
                               </table>
+                              </div>
 
                               {/* Result entry toggle */}
                               {!isOpen ? (
@@ -1161,7 +1164,7 @@ export default function App() {
               {clinicLog.length === 0 ? (
                 <div className="empty-notice">아직 신청 로그가 없습니다.</div>
               ) : (
-                <div style={{overflowX:"auto"}}>
+                <div className="table-wrap">
                   <table>
                     <thead>
                       <tr>
