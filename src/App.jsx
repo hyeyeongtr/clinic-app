@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import * as XLSX from "xlsx";
+import { db } from './firebase.js';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
@@ -233,8 +235,17 @@ const ADMIN_PHONE = "ella";
 const ADMIN_PW = "1234";
 
 const storage = {
-  get: async (k) => { try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; } catch { return null; } },
-  set: async (k, v) => { try { await window.storage.set(k, JSON.stringify(v)); } catch {} },
+  get: async (k) => {
+    try {
+      const snap = await getDoc(doc(db, "appdata", k));
+      return snap.exists() ? snap.data().value : null;
+    } catch(e) { console.error("Firebase get error:", e); return null; }
+  },
+  set: async (k, v) => {
+    try {
+      await setDoc(doc(db, "appdata", k), { value: v });
+    } catch(e) { console.error("Firebase set error:", e); }
+  },
 };
 
 export default function App() {
