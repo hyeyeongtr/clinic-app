@@ -782,7 +782,14 @@ export default function App() {
                         <select value={getSlotForm(d.id).startTime||""} onChange={e => setSlotForm(d.id, { ...getSlotForm(d.id), startTime: e.target.value })}
                           style={{width:"100%",padding:"9px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",background:"white"}}>
                           <option value="">-- 선택 --</option>
-                          {[...Array(14)].map((_,h) => { const hour=h+9; return <option key={hour} value={`${hour}시`}>{hour}시</option>; })}
+                          { [].concat(...[...Array(14)].map((_,h) => [0,10,20,30,40,50].map(m => {
+                              const hour=h+9;
+                              const displayHour = hour > 12 ? hour - 12 : hour;
+                              const ampm = hour < 12 ? '오전' : '오후';
+                              const val=`${hour}:${String(m).padStart(2,'0')}`;
+                              const label=`${ampm} ${displayHour}시${m>0?' '+String(m).padStart(2,'0')+'분':''}`;
+                              return <option key={val} value={val}>{label}</option>;
+                            }))) }
                         </select>
                       </div>
                       <div style={{color:"#aaa",fontSize:"16px",paddingTop:"18px"}}>~</div>
@@ -791,7 +798,14 @@ export default function App() {
                         <select value={getSlotForm(d.id).endTime||""} onChange={e => setSlotForm(d.id, { ...getSlotForm(d.id), endTime: e.target.value })}
                           style={{width:"100%",padding:"9px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",background:"white"}}>
                           <option value="">-- 선택 --</option>
-                          {[...Array(14)].map((_,h) => { const hour=h+9; return <option key={hour} value={`${hour}시`}>{hour}시</option>; })}
+                          { [].concat(...[...Array(14)].map((_,h) => [0,10,20,30,40,50].map(m => {
+                              const hour=h+9;
+                              const displayHour = hour > 12 ? hour - 12 : hour;
+                              const ampm = hour < 12 ? '오전' : '오후';
+                              const val=`${hour}:${String(m).padStart(2,'0')}`;
+                              const label=`${ampm} ${displayHour}시${m>0?' '+String(m).padStart(2,'0')+'분':''}`;
+                              return <option key={val} value={val}>{label}</option>;
+                            }))) }
                         </select>
                       </div>
                     </div>
@@ -837,10 +851,14 @@ export default function App() {
                           <select value={s.startTime||""} onChange={e => updateNewDateSlot(i, "startTime", e.target.value)}
                             style={{width:"100%",padding:"8px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",background:"white"}}>
                             <option value="">-- 선택 --</option>
-                            {[...Array(14)].map((_,h) => {
-                              const hour = h + 9;
-                              return <option key={hour} value={`${hour}시`}>{hour}시</option>;
-                            })}
+                            { [].concat(...[...Array(14)].map((_,h) => [0,10,20,30,40,50].map(m => {
+                              const hour=h+9;
+                              const displayHour = hour > 12 ? hour - 12 : hour;
+                              const ampm = hour < 12 ? '오전' : '오후';
+                              const val=`${hour}:${String(m).padStart(2,'0')}`;
+                              const label=`${ampm} ${displayHour}시${m>0?' '+String(m).padStart(2,'0')+'분':''}`;
+                              return <option key={val} value={val}>{label}</option>;
+                            }))) }
                           </select>
                         </div>
                         <div style={{paddingTop:"18px",color:"#aaa",fontSize:"16px"}}>~</div>
@@ -849,10 +867,14 @@ export default function App() {
                           <select value={s.endTime||""} onChange={e => updateNewDateSlot(i, "endTime", e.target.value)}
                             style={{width:"100%",padding:"8px 10px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",background:"white"}}>
                             <option value="">-- 선택 --</option>
-                            {[...Array(14)].map((_,h) => {
-                              const hour = h + 9;
-                              return <option key={hour} value={`${hour}시`}>{hour}시</option>;
-                            })}
+                            { [].concat(...[...Array(14)].map((_,h) => [0,10,20,30,40,50].map(m => {
+                              const hour=h+9;
+                              const displayHour = hour > 12 ? hour - 12 : hour;
+                              const ampm = hour < 12 ? '오전' : '오후';
+                              const val=`${hour}:${String(m).padStart(2,'0')}`;
+                              const label=`${ampm} ${displayHour}시${m>0?' '+String(m).padStart(2,'0')+'분':''}`;
+                              return <option key={val} value={val}>{label}</option>;
+                            }))) }
                           </select>
                         </div>
                         {newDateSlots.length > 1 && (
