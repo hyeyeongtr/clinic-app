@@ -229,8 +229,8 @@ const STYLE = `
   .empty-notice { color: #aaa; font-size: 13px; text-align: center; padding: 32px 0; }
 `;
 
-const ADMIN_PHONE = "01062926966";
-const ADMIN_PW = "ella1234";
+const ADMIN_PHONE = "ella";
+const ADMIN_PW = "1234";
 
 const storage = {
   get: async (k) => { try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; } catch { return null; } },
@@ -255,6 +255,10 @@ export default function App() {
   const [regFoundStudent, setRegFoundStudent] = useState(null); // {name, class, studentId, phone}
   const [regPw, setRegPw] = useState("");
   const [regPwConfirm, setRegPwConfirm] = useState("");
+
+  // Admin login
+  const [adminPwInput, setAdminPwInput] = useState("");
+  const [adminLoginError, setAdminLoginError] = useState("");
 
   // Admin
   const [adminTab, setAdminTab] = useState("roster");
@@ -364,7 +368,8 @@ export default function App() {
     setLoginPhone(""); setLoginPw("");
     setSelectedSlots([]); setConfirmedSlots([]);
     setIsChanging(false); setError(""); setSuccessMsg("");
-    setRegStep(1); setRegPhone(""); setRegFoundStudent(null); setRegPw(""); setRegPwConfirm("");
+
+    setAdminPwInput(""); setAdminLoginError("");
   };
 
   // ── EXCEL ──
@@ -383,10 +388,14 @@ export default function App() {
       const autoMap = { name: "", class: "", studentId: "", phone: "" };
       headers.forEach((h, i) => {
         const lh = h.toLowerCase();
-        if (!autoMap.name && (lh.includes("이름") || lh.includes("name"))) autoMap.name = String(i);
-        if (!autoMap.class && (lh.includes("반") || lh.includes("class"))) autoMap.class = String(i);
-        if (!autoMap.studentId && (lh.includes("번호") && !lh.includes("전화") && !lh.includes("연락") || lh.includes("학번") || lh.includes("studentid"))) autoMap.studentId = String(i);
-        if (!autoMap.phone && (lh.includes("전화") || lh.includes("연락") || lh.includes("phone") || lh.includes("부모"))) autoMap.phone = String(i);
+        if (!autoMap.name && (lh.includes("이름") || lh === "name")) autoMap.name = String(i);
+        // 수강반1, 반명, class 등 - 수강반 우선
+        if (!autoMap.class && (lh.includes("수강반") || lh.includes("반명") || lh === "class")) autoMap.class = String(i);
+        // 식별번호, 학번 등 - 연락처 제외
+        if (!autoMap.studentId && (lh.includes("식별") || lh.includes("학번") || (lh.includes("번호") && !lh.includes("연락") && !lh.includes("전화") && !lh.includes("학부모") && !lh.includes("추가") && !lh.includes("학생")))) autoMap.studentId = String(i);
+        // 학부모 연락처 우선 (추가/학생 연락처 제외)
+        if (!autoMap.phone && (lh.includes("학부모") || lh.includes("부모") || lh.includes("phone"))) autoMap.phone = String(i);
+        if (!autoMap.phone && lh.includes("전화")) autoMap.phone = String(i);
       });
       setColMap(autoMap);
     };
@@ -1036,72 +1045,30 @@ export default function App() {
             <h1>수요 클리닉 신청</h1>
             <p>정규반 H-Inter 클리닉 수업 신청</p>
           </div>
-          <div className="tabs">
-            <button className={`tab ${authMode==="login"?"active":""}`} onClick={() => { setAuthMode("login"); setError(""); setSuccessMsg(""); setRegStep(1); setRegFoundStudent(null); }}>로그인</button>
-            <button className={`tab ${authMode==="register"?"active":""}`} onClick={() => { setAuthMode("register"); setError(""); setSuccessMsg(""); }}>최초 등록</button>
-          </div>
 
           {error && <div className="error">⚠️ {error}</div>}
           {successMsg && <div className="success">{successMsg}</div>}
 
-          {authMode === "login" ? (
-            <>
-              <div className="field"><label>학부모 전화번호</label>
-                <input type="tel" placeholder="01012345678" value={loginPhone}
-                  onChange={e => setLoginPhone(e.target.value.replace(/\D/g,""))}
-                  onKeyDown={e => e.key==="Enter" && handleLogin()} />
-              </div>
-              <div className="field"><label>비밀번호</label>
-                <input type="password" placeholder="등록 시 설정한 비밀번호" value={loginPw}
-                  onChange={e => setLoginPw(e.target.value)}
-                  onKeyDown={e => e.key==="Enter" && handleLogin()} />
-              </div>
-              <button className="btn-primary" onClick={handleLogin} disabled={loading}>{loading?"확인 중...":"로그인"}</button>
-              <p style={{fontSize:"12px",color:"#aaa",textAlign:"center",marginTop:"14px",lineHeight:"1.6"}}>
-                비밀번호를 잊어버린 경우에는<br/>선생님께 문의해주세요.
-              </p>
-            </>
-          ) : (
-            <>
-              {regStep === 1 && (
-                <>
-                  <div style={{fontSize:"13px",color:"#888",marginBottom:"16px",lineHeight:"1.6"}}>
-                    선생님이 등록한 <strong>학부모 전화번호</strong>로만 가입할 수 있습니다.
-                  </div>
-                  <div className="field"><label>학부모 전화번호</label>
-                    <input type="tel" placeholder="01012345678" value={regPhone}
-                      onChange={e => setRegPhone(e.target.value.replace(/\D/g,""))}
-                      onKeyDown={e => e.key==="Enter" && handleLookupPhone()} />
-                  </div>
-                  <button className="btn-primary" onClick={handleLookupPhone}>학생 조회</button>
-                </>
-              )}
-
-              {regStep === 2 && regFoundStudent && (
-                <>
-                  <div className="student-info-card">
-                    <div className="info-title">✅ 학생 정보 확인</div>
-                    {[["이름", regFoundStudent.name], ["반명", regFoundStudent.class||"-"], ["학생번호", regFoundStudent.studentId||"-"], ["학부모 번호", regPhone]].map(([lbl, val]) => (
-                      <div className="student-info-row" key={lbl}>
-                        <span className="info-label">{lbl}</span>
-                        <span className="info-value">{val}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="field"><label>비밀번호 설정</label>
-                    <input type="password" placeholder="사용할 비밀번호" value={regPw} onChange={e => setRegPw(e.target.value)} />
-                  </div>
-                  <div className="field"><label>비밀번호 확인</label>
-                    <input type="password" placeholder="비밀번호 재입력" value={regPwConfirm}
-                      onChange={e => setRegPwConfirm(e.target.value)}
-                      onKeyDown={e => e.key==="Enter" && handleRegister()} />
-                  </div>
-                  <button className="btn-primary" onClick={handleRegister}>등록 완료</button>
-                  <button className="btn-outline" onClick={() => { setRegStep(1); setRegFoundStudent(null); setRegPhone(""); setError(""); }}>← 번호 다시 입력</button>
-                </>
-              )}
-            </>
+          <div className="field">
+            <label>학부모 전화번호</label>
+            <input type="tel" placeholder="01012345678" value={loginPhone}
+              onChange={e => { setLoginPhone(e.target.value.replace(/[^0-9a-zA-Z]/g,"")); }}
+              onKeyDown={e => e.key==="Enter" && handleLogin()} />
+          </div>
+          {loginPhone.trim() === "ella" && (
+            <div className="field">
+              <label>관리자 비밀번호</label>
+              <input type="password" placeholder="비밀번호 입력" value={loginPw}
+                onChange={e => setLoginPw(e.target.value)}
+                onKeyDown={e => e.key==="Enter" && handleLogin()} />
+            </div>
           )}
+          <button className="btn-primary" onClick={handleLogin} disabled={loading}>
+            {loading ? "확인 중..." : "입장하기"}
+          </button>
+          <p style={{fontSize:"12px",color:"#aaa",textAlign:"center",marginTop:"14px",lineHeight:"1.6"}}>
+            번호가 등록되지 않은 경우<br/>선생님께 문의해주세요.
+          </p>
         </div>
       </div>
     </>
