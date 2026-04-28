@@ -982,11 +982,22 @@ export default function App() {
             <>
               {/* 전체 요약 */}
               <div className="reg-card" style={{marginBottom:"16px"}}>
-                <h3>📋 전체 신청 현황 ({allRegistrations.length}명)</h3>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"16px"}}>
+                  <h3 style={{marginBottom:0}}>📋 전체 신청 현황 ({allRegistrations.length}명)</h3>
+                  {allRegistrations.length > 0 && (
+                    <button onClick={async () => {
+                      if (!window.confirm("전체 신청 내역을 초기화할까요?")) return;
+                      await storage.set("clinic_regs", []);
+                      setAllRegistrations([]);
+                    }} style={{background:"#fff0f0",border:"1px solid #ffcccc",color:"#c00",fontSize:"12px",fontWeight:"700",padding:"6px 14px",borderRadius:"8px",cursor:"pointer"}}>
+                      🗑️ 전체 초기화
+                    </button>
+                  )}
+                </div>
                 {allRegistrations.length === 0 ? <div className="empty-notice">아직 신청한 학생이 없습니다.</div> : (
                   <div className="table-wrap">
                     <table>
-                      <thead><tr><th>이름</th><th>반명</th><th>학년</th><th>학생번호</th><th>학부모 번호</th><th>신청일</th><th>비고</th></tr></thead>
+                      <thead><tr><th>이름</th><th>반명</th><th>학년</th><th>학생번호</th><th>학부모 번호</th><th>신청일</th><th>비고</th><th></th></tr></thead>
                       <tbody>
                         {allRegistrations.map((r, i) => (
                           <tr key={i}>
@@ -997,6 +1008,16 @@ export default function App() {
                             <td>{r.phone}</td>
                             <td>{r.date}</td>
                             <td>{r.changed?"✏️ 변경":"최초"}</td>
+                            <td>
+                              <button onClick={async () => {
+                                if (!window.confirm(`${r.name} 학생의 신청을 삭제할까요?`)) return;
+                                const updated = allRegistrations.filter((_,idx) => idx !== i);
+                                await storage.set("clinic_regs", updated);
+                                setAllRegistrations(updated);
+                              }} style={{background:"#fff0f0",border:"1px solid #ffcccc",color:"#c00",fontSize:"11px",fontWeight:"700",padding:"3px 8px",borderRadius:"6px",cursor:"pointer",whiteSpace:"nowrap"}}>
+                                삭제
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
