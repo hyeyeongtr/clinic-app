@@ -273,7 +273,7 @@ export default function App() {
   // Excel upload
   const [xlsRaw, setXlsRaw] = useState(null); // raw rows from excel
   const [xlsHeaders, setXlsHeaders] = useState([]);
-  const [colMap, setColMap] = useState({ name: "", class: "", studentId: "", phone: "" });
+  const [colMap, setColMap] = useState({ name: "", class: "", grade: "", studentId: "", phone: "" });
   const [dragOver, setDragOver] = useState(false);
 
   // Session setup
@@ -282,6 +282,9 @@ export default function App() {
   const [newDateLabel, setNewDateLabel] = useState("");
   const [newDateSlots, setNewDateSlots] = useState([{ time: "", desc: "" }]);
   const [addSlotForms, setAddSlotForms] = useState({});
+
+  // Twin selection
+  const [twinCandidates, setTwinCandidates] = useState([]); // [{name, class, grade, studentId, phone}]
 
   // Results
   const [slotResults, setSlotResults] = useState({}); // { "dateId_slotId": { type:"score"|"grade"|"note", students:{ phone:{score,total,grade,note} } } }
@@ -310,7 +313,7 @@ export default function App() {
     if (roster.find(s => s.phone === cleanPhone)) {
       setManualSuccess("error:이미 등록된 학부모 번호입니다."); return;
     }
-    const newStudent = { name: manualForm.name.trim(), class: manualForm.class.trim(), studentId: manualForm.studentId.trim(), phone: cleanPhone };
+    const newStudent = { name: manualForm.name.trim(), class: manualForm.class.trim(), grade: (manualForm.grade||"").trim(), studentId: (manualForm.studentId||"").trim(), phone: cleanPhone };
     const updated = [...roster, newStudent];
     await storage.set("clinic_roster", updated);
     setRosterStudents(updated);
@@ -366,6 +369,7 @@ export default function App() {
   const handleLogout = () => {
     setScreen("auth"); setCurrentUser(null);
     setLoginPhone(""); setLoginPw("");
+    setTwinCandidates([]);
     setSelectedSlots([]); setConfirmedSlots([]);
     setIsChanging(false); setError(""); setSuccessMsg("");
 
@@ -385,15 +389,16 @@ export default function App() {
       setXlsHeaders(headers);
       setXlsRaw(data);
       // Auto-detect columns by common keyword matching
-      const autoMap = { name: "", class: "", studentId: "", phone: "" };
+      const autoMap = { name: "", class: "", grade: "", studentId: "", phone: "" };
       headers.forEach((h, i) => {
         const lh = h.toLowerCase();
         if (!autoMap.name && (lh.includes("이름") || lh === "name")) autoMap.name = String(i);
-        // 수강반1, 반명, class 등 - 수강반 우선
+        if (!autoMap.grade && (lh === "학년" || lh.includes("grade"))) autoMap.grade = String(i);
+        // 수강반1, 반명 등
         if (!autoMap.class && (lh.includes("수강반") || lh.includes("반명") || lh === "class")) autoMap.class = String(i);
-        // 식별번호, 학번 등 - 연락처 제외
-        if (!autoMap.studentId && (lh.includes("식별") || lh.includes("학번") || (lh.includes("번호") && !lh.includes("연락") && !lh.includes("전화") && !lh.includes("학부모") && !lh.includes("추가") && !lh.includes("학생")))) autoMap.studentId = String(i);
-        // 학부모 연락처 우선 (추가/학생 연락처 제외)
+        // 학생 연락처 → 학생번호로 사용
+        if (!autoMap.studentId && (lh.includes("학생") && lh.includes("연락"))) autoMap.studentId = String(i);
+        // 학부모 연락처 → 로그인 번호
         if (!autoMap.phone && (lh.includes("학부모") || lh.includes("부모") || lh.includes("phone"))) autoMap.phone = String(i);
         if (!autoMap.phone && lh.includes("전화")) autoMap.phone = String(i);
       });
@@ -418,7 +423,8 @@ export default function App() {
     const students = xlsRaw.map(row => ({
       name: String(row[parseInt(colMap.name)] || "").trim(),
       class: colMap.class !== "" ? String(row[parseInt(colMap.class)] || "").trim() : "",
-      studentId: colMap.studentId !== "" ? String(row[parseInt(colMap.studentId)] || "").trim() : "",
+      grade: colMap.grade !== "" ? String(row[parseInt(colMap.grade)] || "").trim() : "",
+      studentId: colMap.studentId !== "" ? String(row[parseInt(colMap.studentId)] || "").replace(/\D/g,"") : "",
       phone: String(row[parseInt(colMap.phone)] || "").replace(/\D/g, ""),
     })).filter(s => s.name && s.phone);
     await storage.set("clinic_roster", students);
@@ -464,10 +470,11 @@ export default function App() {
   };
   const handleConfirm = async () => {
     if (selectedSlots.length === 0) return;
-    await storage.set(`clinic_reg_${currentUser.phone}`, selectedSlots);
+    const regKey = currentUser.regKey || currentUser.phone;
+    await storage.set(`clinic_reg_${regKey}`, selectedSlots);
     const regs = await storage.get("clinic_regs") || [];
-    const filtered = regs.filter(r => r.phone !== currentUser.phone);
-    await storage.set("clinic_regs", [...filtered, { name: currentUser.name, phone: currentUser.phone, class: currentUser.class, studentId: currentUser.studentId, slots: selectedSlots, date: new Date().toLocaleDateString("ko-KR"), changed: isChanging }]);
+    const filtered = regs.filter(r => (r.regKey || r.phone) !== regKey);
+    await storage.set("clinic_regs", [...filtered, { name: currentUser.name, phone: currentUser.phone, regKey, class: currentUser.class, grade: currentUser.grade, studentId: currentUser.studentId, slots: selectedSlots, date: new Date().toLocaleDateString("ko-KR"), changed: isChanging }]);
     setConfirmedSlots(selectedSlots); setSelectedSlots([]); setIsChanging(false);
   };
 
@@ -582,10 +589,20 @@ export default function App() {
                     </select>
                   </div>
                   <div>
-                    <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>학생 번호</div>
+                    <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>학년</div>
+                    <input type="text" placeholder="예: 중3"
+                      style={{width:"100%",padding:"10px 12px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",transition:"border-color 0.2s"}}
+                      value={manualForm.grade||""}
+                      onChange={e => setManualForm(prev => ({...prev, grade: e.target.value}))}
+                      onFocus={e => e.target.style.borderColor="#0f3460"}
+                      onBlur={e => e.target.style.borderColor="#e8edf2"}
+                    />
+                  </div>
+                  <div>
+                    <div style={{fontSize:"11px",fontWeight:"700",color:"#555",marginBottom:"4px"}}>학생번호 (학생 연락처)</div>
                     <input type="tel" placeholder="01012345678"
                       style={{width:"100%",padding:"10px 12px",border:"2px solid #e8edf2",borderRadius:"8px",fontFamily:"inherit",fontSize:"13px",outline:"none",transition:"border-color 0.2s"}}
-                      value={manualForm.studentId}
+                      value={manualForm.studentId||""}
                       onChange={e => setManualForm(prev => ({...prev, studentId: e.target.value.replace(/\D/g,"")}))}
                       onFocus={e => e.target.style.borderColor="#0f3460"}
                       onBlur={e => e.target.style.borderColor="#e8edf2"}
@@ -628,7 +645,7 @@ export default function App() {
                   <div className="col-map">
                     <h4>🗂 열 매핑</h4>
                     <div className="col-map-grid">
-                      {[["name","학생이름 *"],["phone","학부모 번호 *"],["class","반명"],["studentId","학생번호"]].map(([key, lbl]) => (
+                      {[["name","학생이름 *"],["phone","학부모 번호 *"],["class","반명"],["grade","학년"],["studentId","학생번호 (학생 연락처)"]].map(([key, lbl]) => (
                         <div className="col-map-item" key={key}>
                           <label>{lbl}</label>
                           <select value={colMap[key]} onChange={e => setColMap(prev => ({...prev, [key]: e.target.value}))}>
@@ -644,7 +661,7 @@ export default function App() {
                     <table>
                       <thead>
                         <tr>
-                          {["학생이름","학부모 번호","반명","학생번호"].map(h => <th key={h}>{h}</th>)}
+                          {["학생이름","학부모 번호","반명","학년","학생번호"].map(h => <th key={h}>{h}</th>)}
                         </tr>
                       </thead>
                       <tbody>
@@ -653,7 +670,8 @@ export default function App() {
                             <td>{colMap.name !== "" ? row[parseInt(colMap.name)] || "-" : "-"}</td>
                             <td>{colMap.phone !== "" ? String(row[parseInt(colMap.phone)] || "").replace(/\D/g,"") || "-" : "-"}</td>
                             <td>{colMap.class !== "" ? row[parseInt(colMap.class)] || "-" : "-"}</td>
-                            <td>{colMap.studentId !== "" ? row[parseInt(colMap.studentId)] || "-" : "-"}</td>
+                            <td>{colMap.grade !== "" ? row[parseInt(colMap.grade)] || "-" : "-"}</td>
+                            <td>{colMap.studentId !== "" ? String(row[parseInt(colMap.studentId)] || "").replace(/\D/g,"") || "-" : "-"}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -674,11 +692,11 @@ export default function App() {
                   <p className="roster-sub">총 {rosterStudents.length}명 · 새 엑셀을 업로드하면 덮어씌워집니다.</p>
                   <div className="preview-table-wrap">
                     <table>
-                      <thead><tr><th>이름</th><th>반명</th><th>학생번호</th><th>학부모 번호</th><th></th></tr></thead>
+                      <thead><tr><th>이름</th><th>반명</th><th>학년</th><th>학생번호</th><th>학부모 번호</th><th></th></tr></thead>
                       <tbody>
                         {rosterStudents.map((s, i) => (
                           <tr key={i}>
-                            <td>{s.name}</td><td>{s.class||"-"}</td><td>{s.studentId||"-"}</td><td>{s.phone}</td>
+                            <td>{s.name}</td><td>{s.class||"-"}</td><td>{s.grade||"-"}</td><td>{s.studentId||"-"}</td><td>{s.phone}</td>
                             <td>
                               <div style={{display:"flex",gap:"6px",alignItems:"center"}}>
                                 <button onClick={async () => {
@@ -809,7 +827,7 @@ export default function App() {
                 {allRegistrations.length === 0 ? <div className="empty-notice">아직 신청한 학생이 없습니다.</div> : (
                   <div style={{overflowX:"auto"}}>
                     <table>
-                      <thead><tr><th>이름</th><th>반명</th><th>학생번호</th><th>학부모 번호</th><th>신청일</th><th>비고</th></tr></thead>
+                      <thead><tr><th>이름</th><th>반명</th><th>학년</th><th>학생번호</th><th>학부모 번호</th><th>신청일</th><th>비고</th></tr></thead>
                       <tbody>
                         {allRegistrations.map((r, i) => (
                           <tr key={i}>
@@ -859,6 +877,7 @@ export default function App() {
                                   <tr>
                                     <th style={{fontSize:"11px"}}>이름</th>
                                     <th style={{fontSize:"11px"}}>반명</th>
+                                    <th style={{fontSize:"11px"}}>학년</th>
                                     <th style={{fontSize:"11px"}}>학생번호</th>
                                     <th style={{fontSize:"11px"}}>학부모 번호</th>
                                     {slotData.type === "score" && <><th style={{fontSize:"11px",color:"#0f3460"}}>점수</th><th style={{fontSize:"11px",color:"#0f3460"}}>총점</th></>}
@@ -873,6 +892,7 @@ export default function App() {
                                       <tr key={i}>
                                         <td style={{fontSize:"13px"}}>{r.name}</td>
                                         <td style={{fontSize:"13px"}}>{r.class||"-"}</td>
+                                        <td style={{fontSize:"13px"}}>{r.grade||"-"}</td>
                                         <td style={{fontSize:"13px"}}>{r.studentId||"-"}</td>
                                         <td style={{fontSize:"13px"}}>{r.phone}</td>
                                         {slotData.type === "score" && <>
