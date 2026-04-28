@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import { db } from './firebase.js';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -1178,14 +1178,14 @@ export default function App() {
 
           <div className="field">
             <label>학부모 전화번호</label>
-            <input type="tel" placeholder="01012345678" value={loginPhone}
-              onChange={e => { setLoginPhone(e.target.value.replace(/[^0-9a-zA-Z]/g,"")); setError(""); }}
+            <input ref={loginPhoneRef} type="tel" placeholder="01012345678"
+              onChange={e => { setLoginPhone(e.target.value); setError(""); }}
               onKeyDown={e => e.key==="Enter" && handleLogin()} />
           </div>
-          {loginPhone.trim() === "ella" && (
+          {loginPhone === "ella" && (
             <div className="field">
               <label>관리자 비밀번호</label>
-              <input type="password" placeholder="비밀번호 입력" value={loginPw}
+              <input ref={loginPwRef} type="password" placeholder="비밀번호 입력"
                 onChange={e => setLoginPw(e.target.value)}
                 onKeyDown={e => e.key==="Enter" && handleLogin()} />
             </div>
