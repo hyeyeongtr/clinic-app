@@ -814,8 +814,19 @@ export default function App() {
               {showNewDateForm ? (
                 <div className="new-date-form">
                   <h4>📅 새 날짜 추가</h4>
-                  <div className="field"><label>날짜 표기 (예: 5/6 수요일)</label>
-                    <input type="text" placeholder="5/6 수요일" value={newDateLabel} onChange={e => setNewDateLabel(e.target.value)} />
+                  <div className="field"><label>날짜 선택</label>
+                    <input type="date" value={newDateVal} onChange={e => {
+                      setNewDateVal(e.target.value);
+                      if (e.target.value) {
+                        const d = new Date(e.target.value);
+                        const days = ["일","월","화","수","목","금","토"];
+                        const month = d.getMonth() + 1;
+                        const day = d.getDate();
+                        const dayName = days[d.getDay()];
+                        setNewDateLabel(`${month}/${day} (${dayName})`);
+                      }
+                    }} style={{width:"100%",padding:"12px 16px",border:"2px solid #e8edf2",borderRadius:"10px",fontFamily:"inherit",fontSize:"14px",outline:"none"}} />
+                    {newDateLabel && <div style={{marginTop:"6px",fontSize:"13px",color:"#0f3460",fontWeight:"700"}}>→ {newDateLabel}</div>}
                   </div>
                   <div style={{marginTop:"14px",marginBottom:"6px",fontSize:"12px",fontWeight:"700",color:"#0f3460"}}>⏰ 시간대 및 수업 내용</div>
                   {newDateSlots.map((s, i) => (
