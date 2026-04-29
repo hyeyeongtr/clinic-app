@@ -611,6 +611,44 @@ export default function App() {
     setClinicLog(logs || []);
   };
 
+  const downloadExcel = () => {
+    // 최대 슬롯 수 계산
+    const maxSlots = Math.max(...allRegistrations.map(r => r.slots?.length || 0), 1);
+
+    const rows = allRegistrations.map(r => {
+      const slotLabels = (r.slots || []).map(s => getSlotLabel(s.dateId, s.slotId)).filter(Boolean);
+      const row = {
+        "이름": r.name || "",
+        "학부모 번호": r.phone || "",
+        "반명": r.class || "",
+        "학생번호": r.studentId || "",
+        "학년": r.grade || "",
+        "총 신청 수업 수": slotLabels.length,
+      };
+      // 수업별 컬럼 추가
+      for (let i = 0; i < maxSlots; i++) {
+        row[`신청수업${i + 1}`] = slotLabels[i] || "";
+      }
+      row["신청일"] = r.date || "";
+      return row;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "신청명단");
+
+    // 열 너비
+    const cols = [
+      { wch: 10 }, { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 8 }, { wch: 10 },
+      ...Array(maxSlots).fill({ wch: 30 }),
+      { wch: 14 }
+    ];
+    ws["!cols"] = cols;
+
+    const today = new Date().toLocaleDateString("ko-KR").replace(/\. /g, "-").replace(".", "");
+    XLSX.writeFile(wb, `수요클리닉_신청명단_${today}.xlsx`);
+  };
+
   const saveResults = async (updated) => {
     setSlotResults(updated);
     await storage.set("clinic_results", updated);
@@ -1069,16 +1107,21 @@ export default function App() {
             <>
               {/* 전체 요약 */}
               <div className="reg-card" style={{marginBottom:"16px"}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"16px"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"16px",flexWrap:"wrap",gap:"8px"}}>
                   <h3 style={{marginBottom:0}}>📋 전체 신청 현황 ({allRegistrations.length}명)</h3>
                   {allRegistrations.length > 0 && (
-                    <button onClick={async () => {
-                      if (!window.confirm("전체 신청 내역을 초기화할까요?")) return;
-                      await storage.set("clinic_regs", []);
-                      setAllRegistrations([]);
-                    }} style={{background:"#fff0f0",border:"1px solid #ffcccc",color:"#c00",fontSize:"12px",fontWeight:"700",padding:"6px 14px",borderRadius:"8px",cursor:"pointer"}}>
-                      🗑️ 전체 초기화
-                    </button>
+                    <div style={{display:"flex",gap:"8px"}}>
+                      <button onClick={downloadExcel} style={{background:"#f0fff4",border:"1px solid #b2f5c8",color:"#1a7a3f",fontSize:"12px",fontWeight:"700",padding:"6px 14px",borderRadius:"8px",cursor:"pointer"}}>
+                        📥 엑셀 다운로드
+                      </button>
+                      <button onClick={async () => {
+                        if (!window.confirm("전체 신청 내역을 초기화할까요?")) return;
+                        await storage.set("clinic_regs", []);
+                        setAllRegistrations([]);
+                      }} style={{background:"#fff0f0",border:"1px solid #ffcccc",color:"#c00",fontSize:"12px",fontWeight:"700",padding:"6px 14px",borderRadius:"8px",cursor:"pointer"}}>
+                        🗑️ 전체 초기화
+                      </button>
+                    </div>
                   )}
                 </div>
                 {allRegistrations.length === 0 ? <div className="empty-notice">아직 신청한 학생이 없습니다.</div> : (
