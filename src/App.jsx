@@ -598,6 +598,11 @@ export default function App() {
     const s = d?.slots.find(x => x.id === slotId);
     return d && s ? `${d.label} ${s.time}` : "";
   };
+  const getSlotLabelFull = (dateId, slotId) => {
+    const d = clinicDates.find(x => x.id === dateId);
+    const s = d?.slots.find(x => x.id === slotId);
+    return d && s ? `${d.label} ${s.time} [${s.desc}]` : "";
+  };
   const countForSlot = (dateId, slotId) =>
     allRegistrations.filter(r => r.slots.some(s => s.dateId === dateId && s.slotId === slotId)).length;
 
@@ -616,7 +621,7 @@ export default function App() {
     const maxSlots = Math.max(...allRegistrations.map(r => r.slots?.length || 0), 1);
 
     const rows = allRegistrations.map(r => {
-      const slotLabels = (r.slots || []).map(s => getSlotLabel(s.dateId, s.slotId)).filter(Boolean);
+      const slotLabels = (r.slots || []).map(s => getSlotLabelFull(s.dateId, s.slotId)).filter(Boolean);
       const row = {
         "이름": r.name || "",
         "학부모 번호": r.phone || "",
