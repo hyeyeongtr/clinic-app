@@ -556,15 +556,13 @@ export default function App() {
   const toggleSlot = (dateId, slotId) => {
     // 신청 완료 상태면 자동으로 변경 모드 진입
     if (confirmedSlots.length > 0 && !isChanging) {
-      setSelectedSlots([...confirmedSlots]);
+      // 클릭한 슬롯 기준으로 토글한 새 선택 목록 계산
+      const already = confirmedSlots.some(s => s.dateId === dateId && s.slotId === slotId);
+      const newSlots = already
+        ? confirmedSlots.filter(s => !(s.dateId === dateId && s.slotId === slotId))
+        : [...confirmedSlots, { dateId, slotId }];
+      setSelectedSlots(newSlots);
       setIsChanging(true);
-      // 클릭한 슬롯 토글
-      setTimeout(() => {
-        setSelectedSlots(prev => {
-          const already = prev.some(s => s.dateId === dateId && s.slotId === slotId);
-          return already ? prev.filter(s => !(s.dateId === dateId && s.slotId === slotId)) : [...prev, { dateId, slotId }];
-        });
-      }, 0);
       return;
     }
     if (isSelected(dateId, slotId)) setSelectedSlots(prev => prev.filter(s => !(s.dateId === dateId && s.slotId === slotId)));
