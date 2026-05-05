@@ -568,6 +568,22 @@ export default function App() {
     if (isSelected(dateId, slotId)) setSelectedSlots(prev => prev.filter(s => !(s.dateId === dateId && s.slotId === slotId)));
     else setSelectedSlots(prev => [...prev, { dateId, slotId }]);
   };
+  const handleCancelAll = async () => {
+    if (!window.confirm("신청한 수업을 모두 취소할까요?")) return;
+    const regKey = currentUser.regKey || currentUser.phone;
+    await storage.set(`clinic_reg_${regKey}`, []);
+    const regs = await storage.get("clinic_regs") || [];
+    await storage.set("clinic_regs", regs.filter(r => (r.regKey || r.phone) !== regKey));
+    const logEntry = {
+      id: Date.now(), name: currentUser.name, class: currentUser.class || "",
+      grade: currentUser.grade || "", phone: currentUser.phone,
+      action: "전체취소", slots: [], datetime: new Date().toLocaleString("ko-KR"),
+    };
+    const logs = await storage.get("clinic_log") || [];
+    await storage.set("clinic_log", [...logs, logEntry]);
+    setConfirmedSlots([]); setSelectedSlots([]); setIsChanging(false);
+  };
+
   const handleConfirm = async () => {
     if (selectedSlots.length === 0) return;
     const regKey = currentUser.regKey || currentUser.phone;
