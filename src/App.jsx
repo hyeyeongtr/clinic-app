@@ -1414,7 +1414,15 @@ export default function App() {
               <button className="btn-confirm" disabled={selectedSlots.length === 0} onClick={handleConfirm}>
                 {selectedSlots.length > 0 ? `${selectedSlots.length}개 수업 ${isChanging?"변경 확정하기":"신청하기"}` : "수업을 선택해주세요"}
               </button>
-              {isChanging && <button className="btn-cancel-change" onClick={() => { setSelectedSlots([]); setIsChanging(false); }}>취소</button>}
+              {isChanging && (
+                <>
+                  <button onClick={handleCancelAll}
+                    style={{width:"100%",padding:"12px",background:"#fff0f0",color:"#c00",border:"2px solid #ffcccc",borderRadius:"10px",fontFamily:"inherit",fontSize:"14px",fontWeight:"700",cursor:"pointer",marginTop:"8px"}}>
+                    🗑️ 신청 전체 취소
+                  </button>
+                  <button className="btn-cancel-change" onClick={() => { setSelectedSlots([...confirmedSlots]); setIsChanging(false); }}>돌아가기</button>
+                </>
+              )}
               <p className="hint">여러 수업을 중복 선택할 수 있습니다.</p>
             </>
           )}
